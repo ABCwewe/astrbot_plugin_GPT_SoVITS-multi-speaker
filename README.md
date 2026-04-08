@@ -16,7 +16,7 @@ _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 ## 1. 介绍
 
-本插件基于[astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)修改，感谢@Zhalslar
+本插件基于[astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)修改，感谢[@Zhalslar](https://github.com/Zhalslar)
 
 `astrbot_plugin_GPT_SoVITS-multi-speaker` 用于把 AstrBot 文本输出转换成语音输出，支持多说话人切换，底层调用 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) 的 API。
 
