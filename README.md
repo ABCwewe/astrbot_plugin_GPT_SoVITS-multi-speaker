@@ -1,15 +1,14 @@
 <div align="center">
 
-![:name](https://count.getloli.com/@astrbot_plugin_GPT_SoVITS?name=astrbot_plugin_GPT_SoVITS&theme=minecraft&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
-
-# astrbot_plugin_GPT_SoVITS
+# astrbot_plugin_GPT_SoVITS-multi-speaker
 
 _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.0%2B-orange.svg)](https://github.com/Soulter/AstrBot)
-[![GitHub](https://img.shields.io/badge/作者-Zhalslar-blue)](https://github.com/Zhalslar)
+[![GitHub](https://img.shields.io/badge/原作者-Zhalslar-blue)](https://github.com/Zhalslar)
+[![GitHub](https://img.shields.io/badge/作者-ABCwewe-blue)](https://github.com/ABCwewe)
 
 </div>
 
@@ -17,12 +16,14 @@ _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 ## 1. 介绍
 
-`astrbot_plugin_GPT_SoVITS` 用于把 AstrBot 文本输出转换成语音输出，底层调用 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) 的 API。
+本插件基于[astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)修改，感谢@Zhalslar
 
-**v2.0 新增功能**：
-- ✅ **多说话人支持**：每个说话人有独立的模型、服务器和情绪配置
-- ✅ **实时切换**：通过指令实时切换说话人和情绪
-- ✅ **情绪优先级**：指令指定情绪 > LLM 判断情绪 > 关键词匹配情绪
+`astrbot_plugin_GPT_SoVITS-multi-speaker` 用于把 AstrBot 文本输出转换成语音输出，支持多说话人切换，底层调用 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) 的 API。
+
+**v3.2.0 新增功能**：
+-  **多说话人支持**：每个说话人有独立的模型、服务器和情绪配置
+-  **实时切换**：通过指令实时切换说话人和情绪
+-  **情绪优先级**：指令指定情绪 > LLM 判断情绪 > 关键词匹配情绪
 
 支持三种调用方式：
 1. 指令转语音：手动输入命令立即合成语音。
@@ -44,7 +45,10 @@ _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 ### 2.2 安装 AstrBot 插件
 
-在 AstrBot 插件市场搜索 `astrbot_plugin_GPT_SoVITS` 并安装。
+```
+cd AstrBot/data/plugins    #移动到插件目录
+git clone https://github.com/ABCwewe/astrbot_plugin_GPT_SoVITS-multi-speaker.git
+```
 
 ---
 
@@ -189,79 +193,45 @@ python3 api_v2.py
 | --- | --- | --- |
 | `enabled` | 是否启用参数级缓存 | 建议开启 |
 | `expire_hours` | 缓存过期时间（小时） | `0` 表示永不过期 |
-| `path` | 缓存目录 | 支���相对/绝对路径 |
+| `path` | 缓存目录 | 支持相对/绝对路径 |
 
----
-
-## 7. 配置示例
-
-```json
-{
-    "enabled": true,
-    "default_speaker": "default",
-    "speakers": [
-        {
-            "speaker_name": "default",
-            "gpt_path": "",
-            "sovits_path": "",
-            "base_url": "http://127.0.0.1:9880",
-            "timeout": 60,
-            "emotions": [
-                {
-                    "name": "默认",
-                    "keywords": [],
-                    "ref_audio_path": "path/to/ref.wav",
-                    "prompt_text": "参考文本",
-                    "prompt_lang": "zh",
-                    "speed_factor": 1.0,
-                    "fragment_interval": 0.7
-                },
-                {
-                    "name": "开心",
-                    "keywords": ["哈哈", "高兴"],
-                    "ref_audio_path": "path/to/happy.wav",
-                    "prompt_text": "开心的文本",
-                    "prompt_lang": "zh",
-                    "speed_factor": 1.2
-                }
-            ]
-        },
-        {
-            "speaker_name": "B",
-            "gpt_path": "path/to/b/gpt.ckpt",
-            "sovits_path": "path/to/b/sovits.pth",
-            "base_url": "http://127.0.0.1:9881",
-            "timeout": 60,
-            "emotions": [
-                {
-                    "name": "平静",
-                    "keywords": [],
-                    "ref_audio_path": "path/to/b/calm.wav",
-                    "prompt_text": "平静的文本",
-                    "prompt_lang": "zh",
-                    "speed_factor": 1.0
-                }
-            ]
-        }
-    ],
-    "auto": {
-        "only_llm_result": true,
-        "tts_prob": 0.15,
-        "max_msg_len": 50
-    },
-    "judge": {
-        "enabled_llm": false,
-        "provider_id": ""
-    },
-    "cache": {
-        "enabled": true,
-        "expire_hours": 0,
-        "path": "data/plugins_data/astrbot_plugin_GPT_SoVITS/audio"
-    }
-}
+## 7.生成配置文件
+如果你的模型数量众多可以使用下面的目录结构放置模型文件和参考音频，运行本插件提供的python脚本生成配置文件
 ```
-
----
+├─丹瑾_ZH
+│  │  train.log
+│  │  丹瑾_ZH-e10.ckpt
+│  │  丹瑾_ZH_e10_s140_l32.pth
+│  │
+│  └─reference_audios
+│      └─中文
+│          └─emotions
+│                  【默认】能开出龙须酥就好了…….wav
+│
+├─今汐_ZH
+│  │  train.log
+│  │  今汐_ZH-e10.ckpt
+│  │  今汐_ZH_e10_s240_l32.pth
+│  │
+│  └─reference_audios
+│      └─中文
+│          └─emotions
+│                  【默认】……到了那时，又怎么会有人甘愿为寰宇间的盈尺之地穷尽山海？.wav
+│
+├─卡提希娅_ZH
+│  │  train.log
+│  │  卡提希娅_ZH-e10.ckpt
+│  │  卡提希娅_ZH_e10_s310_l32.pth
+│  │
+│  └─reference_audios
+│      └─中文
+│          └─emotions
+│                  【默认】不过，我建议你现在最好去找坎特蕾拉聊聊，她应该已经安全离开索诺拉了，我能感觉到。.wav
+```
+然后在该目录下运行 `generate_speakers_config.py`
+```
+python3 generate_speakers_config.py
+```
 
 ## 8. 常见问题与排查
 
@@ -311,9 +281,9 @@ python3 api_v2.py
 ## 📌 注意事项
 
 - 本插件优先兼容 GPT-SoVITS 官方实现与常见整合包。若使用第三方魔改版本，请以其 API 实际行为为准。
-- 想第一时间得到反馈的可以来作者的插件反馈群（QQ 群）：460973561（不点 star 不给进）
-
 
 ## 🙏 致谢
 
 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)，1 min voice data can also be used to train a good TTS model! (few shot voice cloning)
+
+[astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)，astrbot_plugin_GPT_SoVITS 用于把 AstrBot 文本输出转换成语音输出，底层调用 GPT-SoVITS 的 API。
