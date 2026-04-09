@@ -232,6 +232,9 @@ python3 api_v2.py
 ```
 python3 generate_speakers_config.py
 ```
+打开同目录下生成的`speakers_config.json`配置文件，复制`speakers`下的内容，粘贴到AstrBot的`data/config`目录下的`astrbot_plugin_GPT_SoVITS-muilt-speaker_config.json`内
+
+如果是初次配置直接将这个配置文件复制替换也可以
 
 ## 8. 常见问题与排查
 
@@ -257,17 +260,6 @@ python3 generate_speakers_config.py
 1. 若使用关键词模式，确认关键词确实出现在回复文本中；
 2. 若使用 LLM 模式，确认 `judge.enabled_llm` 已开启；
 3. 确认目标情绪条目存在于该说话人的 `emotions` 列表中。
-
----
-
-## 9. 旧配置迁移
-
-首次使用时会自动迁移旧配置格式：
-- 原有 `client`、`model` 配置会合并为默认说话人
-- 原有 `entry_storage` 会转换为默认说话人的情绪列表
-- 原有 `default_params` 作为基础参数
-
-**建议**：迁移完成后，通过 WebUI 重新检查配置。
 
 ---
 
