@@ -195,6 +195,8 @@ python3 api_v2.py
 | `expire_hours` | 缓存过期时间（小时） | `0` 表示永不过期 |
 | `path` | 缓存目录 | 支持相对/绝对路径 |
 
+---
+
 ## 7.生成配置文件
 如果你的模型数量众多可以使用下面的目录结构放置模型文件和参考音频，运行本插件提供的python脚本生成配置文件
 ```
@@ -235,6 +237,8 @@ python3 generate_speakers_config.py
 打开同目录下生成的`speakers_config.json`配置文件，复制`speakers`下的内容，粘贴到AstrBot的`data/config`目录下的`astrbot_plugin_GPT_SoVITS-muilt-speaker_config.json`内
 
 如果是初次配置直接将这个配置文件复制替换也可以
+
+---
 
 ## 8. 常见问题与排查
 
