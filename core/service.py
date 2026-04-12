@@ -24,7 +24,6 @@ class GPTSoVITSService:
         self.local_data = local_data
         self.text_lang = getattr(speaker_config, "text_lang", "zh")
         self.tts_params = tts_params
-        self.model_loaded = False
 
     def _build_default_params(self) -> dict[str, Any]:
         """构建默认参数（优先使用名为"默认"的情绪，否则使用第一个情绪）"""

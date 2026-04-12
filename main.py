@@ -62,9 +62,7 @@ class GPTSoVITSPlugin(Star):
         """获取或创建说话人对应的服务实例，并加载模型（如需要）"""
         service = self._create_service(speaker_name)
 
-        if not service.model_loaded:
-            await service.load_model()
-            service.model_loaded = True
+        await service.load_model()
 
         return service
 
