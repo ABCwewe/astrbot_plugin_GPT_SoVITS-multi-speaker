@@ -342,11 +342,9 @@ class GPTSoVITSPlugin(Star):
         sub_cmd = parts[0] if parts else ""
 
         if sub_cmd == "列表":
-            async for _ in self.list_speakers(event):
-                pass
+            yield event.plain_result(self.list_speakers_text())
         elif sub_cmd == "当前":
-            async for _ in self.current_speaker(event):
-                pass
+            yield event.plain_result(self.current_speaker_text())
         elif sub_cmd in ["设置默认", "设置"]:
             if len(parts) < 2:
                 yield event.plain_result("用法：GSV 设置默认 <说话人>")
@@ -362,12 +360,11 @@ class GPTSoVITSPlugin(Star):
                 f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
             )
 
-    async def list_speakers(self, event: AstrMessageEvent):
-        """列出所有可用说话人"""
+    def list_speakers_text(self) -> str:
+        """生成说话人列表文本"""
         speakers = self.speaker_mgr.get_all_speaker_names()
         if not speakers:
-            yield event.plain_result("暂无可用说话人")
-            return
+            return "暂无可用说话人"
 
         result = "可用说话人：\n"
         for name in speakers:
@@ -379,11 +376,11 @@ class GPTSoVITSPlugin(Star):
             if emotion_names:
                 result += f"  情绪：{', '.join(emotion_names)}\n"
 
-        yield event.plain_result(result)
+        return result
 
-    async def current_speaker(self, event: AstrMessageEvent):
-        """查看当前默认说话人"""
-        yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
+    def current_speaker_text(self) -> str:
+        """获取当前默认说话人文本"""
+        return f"当前默认说话人：{self.cfg.default_speaker}"
 
     @filter.llm_tool()
     async def gsv_tts(self, event: AstrMessageEvent, message: str = ""):
