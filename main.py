@@ -242,26 +242,23 @@ class GPTSoVITSPlugin(Star):
         chain.clear()
         chain.append(self._to_record(res))
 
-    @filter.command("说", alias={"gsv", "GSV"})
+    @filter.command("说")
     async def on_command(self, event: AstrMessageEvent):
         """说 [说话人] [情绪] <内容>"""
         if not self.cfg.enabled:
             return
 
-        # 去掉指令名 "说" 或 "gsv"
+        # 去掉指令名 "说"
         msg = event.message_str
         stripped = False
-        for alias in ["说 ", "gsv ", "GSV "]:
+        for alias in ["说 "]:
             if msg.startswith(alias):
                 msg = msg[len(alias) :]
                 stripped = True
                 break
         if not stripped:
-            # 无空格的情况
             if msg.startswith("说"):
                 msg = msg[1:]
-            elif msg.startswith("gsv") or msg.startswith("GSV"):
-                msg = msg[3:]
             msg = msg.lstrip()
 
         speaker_name, emotion_name, text = self._parse_say_command(msg)
@@ -313,8 +310,53 @@ class GPTSoVITSPlugin(Star):
         if not self.cfg.enabled:
             return
         yield event.plain_result("重启 TTS 中...(报错信息请忽略，等待一会即可完成重启)")
-        service = self._get_or_create_service(self.cfg.default_speaker)
+        service = await self._get_or_create_service(self.cfg.default_speaker)
         await service.restart()
+
+    @filter.command("GSV")
+    async def on_gsv_command(self, event: AstrMessageEvent):
+        """GSV 管理指令（不合成语音）"""
+        if not self.cfg.enabled:
+            return
+
+        # 去掉指令名 "GSV" 或 "gsv"
+        msg = event.message_str
+        stripped = False
+        for alias in ["GSV ", "gsv "]:
+            if msg.startswith(alias):
+                msg = msg[len(alias) :]
+                stripped = True
+                break
+        if not stripped:
+            if msg.startswith("GSV") or msg.startswith("gsv"):
+                msg = msg[3:]
+            msg = msg.lstrip()
+
+        if not msg:
+            yield event.plain_result(
+                "GSV 指令用法：\n- GSV 列表：列出所有说话人\n- GSV 当前：查看当前默认说话人\n- GSV 设置默认 <说话人>：设置默认说话人\n- GSV 重启：重启 TTS 服务"
+            )
+            return
+
+        parts = msg.split()
+        sub_cmd = parts[0] if parts else ""
+
+        if sub_cmd == "列表":
+            await self.list_speakers(event)
+        elif sub_cmd == "当前":
+            await self.current_speaker(event)
+        elif sub_cmd in ["设置默认", "设置"]:
+            if len(parts) < 2:
+                yield event.plain_result("用法：GSV 设置默认 <说话人>")
+                return
+            speaker_name = " ".join(parts[1:])
+            await self.set_default_speaker(event, speaker_name)
+        elif sub_cmd in ["重启", "重载"]:
+            await self.tts_control(event)
+        else:
+            yield event.plain_result(
+                f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
+            )
 
     @filter.command_group("GSV")
     async def gsv_group(self):
@@ -332,9 +374,12 @@ class GPTSoVITSPlugin(Star):
         result = "可用说话人：\n"
         for name in speakers:
             speaker = self.speaker_mgr.get_speaker(name)
-            emotion_count = len(speaker.emotions_list) if speaker else 0
+            emotion_names = speaker.get_emotion_names() if speaker else []
+            emotion_count = len(emotion_names)
             default_marker = " (默认)" if name == self.cfg.default_speaker else ""
             result += f"- {name} ({emotion_count} 个情绪){default_marker}\n"
+            if emotion_names:
+                result += f"  情绪：{', '.join(emotion_names)}\n"
 
         yield event.plain_result(result)
 
