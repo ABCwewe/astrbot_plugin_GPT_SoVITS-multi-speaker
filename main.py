@@ -235,7 +235,7 @@ class GPTSoVITSPlugin(Star):
             event, speaker_name, combined_text
         )
 
-        service = self._get_or_create_service(speaker_name)
+        service = await self._get_or_create_service(speaker_name)
         res = await service.inference(combined_text, emotion_config=emotion_config)
 
         if not bool(res):
@@ -286,7 +286,7 @@ class GPTSoVITSPlugin(Star):
             event, speaker_name, text, emotion_name
         )
 
-        service = self._get_or_create_service(speaker_name)
+        service = await self._get_or_create_service(speaker_name)
         res = await service.inference(text, emotion_config=emotion_config)
 
         if not bool(res):
@@ -360,7 +360,7 @@ class GPTSoVITSPlugin(Star):
                 event, speaker_name, message
             )
 
-            service = self._get_or_create_service(speaker_name)
+            service = await self._get_or_create_service(speaker_name)
             res = await service.inference(message, emotion_config=emotion_config)
 
             if not bool(res):
