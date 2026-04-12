@@ -1,7 +1,6 @@
 # entry.py
 from __future__ import annotations
 
-from typing import Any
 
 from astrbot.api import logger
 

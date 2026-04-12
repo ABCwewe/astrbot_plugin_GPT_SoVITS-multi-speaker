@@ -56,15 +56,19 @@ class GPTSoVITSPlugin(Star):
                 tts_params=self.cfg.tts_params,
             )
 
-        return self.services[speaker_name]
+        service = self.services[speaker_name]
+
+        if not service.model_loaded:
+            await service.load_model()
+            service.model_loaded = True
+
+        return service
 
     async def initialize(self):
         if self.cfg.enabled:
-            # 加载默认说话人的模型
             default_speaker = self.cfg.default_speaker
             if default_speaker in self.speaker_mgr.get_all_speaker_names():
-                service = self._get_or_create_service(default_speaker)
-                await service.load_model()
+                self._get_or_create_service(default_speaker)
 
     async def terminate(self):
         # 关闭所有客户端
@@ -105,9 +109,6 @@ class GPTSoVITSPlugin(Star):
         speaker_name = None
         emotion_name = None
         text_start = 0
-
-        # 检查第一个词是否为说话人名称或别名
-        all_speaker_names = self.speaker_mgr.get_all_speaker_names()
 
         # 先尝试通过名称或别名查找说话人
         if parts[0]:
@@ -182,7 +183,7 @@ class GPTSoVITSPlugin(Star):
         # 优先级 3: 关键词匹配
         emotion_config = self.speaker_mgr.match_emotion(speaker_name, text)
         if emotion_config:
-            logger.debug(f"使用关键词匹配的情绪")
+            logger.debug("使用关键词匹配的情绪")
             return emotion_config
 
         return None

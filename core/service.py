@@ -24,15 +24,25 @@ class GPTSoVITSService:
         self.local_data = local_data
         self.text_lang = getattr(speaker_config, "text_lang", "zh")
         self.tts_params = tts_params
+        self.model_loaded = False
 
     def _build_default_params(self) -> dict[str, Any]:
-        """构建默认参数（使用第一个情绪的配置作为基础）"""
+        """构建默认参数（优先使用名为"默认"的情绪，否则使用第一个情绪）"""
         emotions_list = self.speaker_cfg.emotions_list
-        if emotions_list:
-            first_emotion = emotions_list[0]
-            if isinstance(first_emotion, dict):
-                first_emotion = EmotionConfig(first_emotion)
-            return first_emotion.to_params()
+
+        default_emotion = None
+        for emotion_data in emotions_list:
+            if isinstance(emotion_data, dict) and emotion_data.get("name") == "默认":
+                default_emotion = emotion_data
+                break
+
+        if default_emotion is None and emotions_list:
+            default_emotion = emotions_list[0]
+
+        if default_emotion:
+            if isinstance(default_emotion, dict):
+                default_emotion = EmotionConfig(default_emotion)
+            return default_emotion.to_params()
         return {}
 
     @staticmethod

@@ -11,8 +11,6 @@ GPT-SoVITS 说话人配置批量生成脚本
 """
 
 import json
-import os
-import glob
 from pathlib import Path
 
 
@@ -84,7 +82,7 @@ def generate_emotion_from_filename(filename: str) -> dict:
     if "【" in name and "】" in name:
         try:
             emotion_name = name.split("【")[1].split("】")[0]
-        except:
+        except Exception:
             pass
 
     # 提取参考文本（文件名中 【】 后面的部分）
@@ -179,10 +177,10 @@ def main():
     # 获取当前目录
     root_dir = Path(".").resolve()
 
-    print(f"=" * 50)
-    print(f"GPT-SoVITS 说话人配置生成器")
+    print("=" * 50)
+    print("GPT-SoVITS 说话人配置生成器")
     print(f"扫描目录: {root_dir}")
-    print(f"=" * 50)
+    print("=" * 50)
     print()
 
     # 扫描说话人
@@ -193,9 +191,9 @@ def main():
         return
 
     print()
-    print(f"=" * 50)
+    print("=" * 50)
     print(f"共找到 {len(speakers)} 个说话人")
-    print(f"=" * 50)
+    print("=" * 50)
 
     # 生成配置
     config = {
