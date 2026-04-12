@@ -358,12 +358,6 @@ class GPTSoVITSPlugin(Star):
                 f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
             )
 
-    @filter.command_group("GSV")
-    async def gsv_group(self):
-        """GSV 管理指令组"""
-        pass
-
-    @gsv_group.command("列表")
     async def list_speakers(self, event: AstrMessageEvent):
         """列出所有可用说话人"""
         speakers = self.speaker_mgr.get_all_speaker_names()
@@ -383,7 +377,6 @@ class GPTSoVITSPlugin(Star):
 
         yield event.plain_result(result)
 
-    @gsv_group.command("当前")
     async def current_speaker(self, event: AstrMessageEvent):
         """查看当前默认说话人"""
         yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
