@@ -9,7 +9,7 @@ from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star
 from astrbot.core import AstrBotConfig
-from astrbot.core.message.components import Plain, Record
+from astrbot.core.message.components import Node, Plain, Record
 from astrbot.core.platform import AstrMessageEvent
 
 from .core.client import GSVApiClient, GSVRequestResult
@@ -342,9 +342,10 @@ class GPTSoVITSPlugin(Star):
         sub_cmd = parts[0] if parts else ""
 
         if sub_cmd == "列表":
-            yield event.plain_result(self.list_speakers_text())
+            uin = event.get_user_id()
+            yield event.chain_result(self.list_speakers_nodes(int(uin) if uin else 0))
         elif sub_cmd == "当前":
-            yield event.plain_result(self.current_speaker_text())
+            yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
         elif sub_cmd in ["设置默认", "设置"]:
             if len(parts) < 2:
                 yield event.plain_result("用法：GSV 设置默认 <说话人>")
@@ -360,27 +361,28 @@ class GPTSoVITSPlugin(Star):
                 f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
             )
 
-    def list_speakers_text(self) -> str:
-        """生成说话人列表文本"""
+    def list_speakers_nodes(self, uin: int) -> list[Node]:
+        """生成说话人列表的 Node 节点"""
         speakers = self.speaker_mgr.get_all_speaker_names()
         if not speakers:
-            return "暂无可用说话人"
+            return [Node(uin=uin, name="TTS 助手", content=[Plain("暂无可用说话人")])]
 
-        result = "可用说话人：\n"
+        nodes = []
         for name in speakers:
             speaker = self.speaker_mgr.get_speaker(name)
             emotion_names = speaker.get_emotion_names() if speaker else []
             emotion_count = len(emotion_names)
             default_marker = " (默认)" if name == self.cfg.default_speaker else ""
-            result += f"- {name} ({emotion_count} 个情绪){default_marker}\n"
+
+            content = [
+                Plain(f"说话人：{name}{default_marker}\n情绪数量：{emotion_count}\n")
+            ]
             if emotion_names:
-                result += f"  情绪：{', '.join(emotion_names)}\n"
+                content.append(Plain(f"可用情绪：{', '.join(emotion_names)}"))
 
-        return result
+            nodes.append(Node(uin=uin, name="TTS 助手", content=content))
 
-    def current_speaker_text(self) -> str:
-        """获取当前默认说话人文本"""
-        return f"当前默认说话人：{self.cfg.default_speaker}"
+        return nodes
 
     @filter.llm_tool()
     async def gsv_tts(self, event: AstrMessageEvent, message: str = ""):
