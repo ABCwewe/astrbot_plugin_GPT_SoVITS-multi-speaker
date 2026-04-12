@@ -362,27 +362,22 @@ class GPTSoVITSPlugin(Star):
             )
 
     def list_speakers_nodes(self, uin: int) -> list[Node]:
-        """生成说话人列表的 Node 节点"""
+        """生成说话人列表的 Node 节点（单条消息包含所有说话人）"""
         speakers = self.speaker_mgr.get_all_speaker_names()
-        if not speakers:
-            return [Node(uin=uin, name="TTS 助手", content=[Plain("暂无可用说话人")])]
 
-        nodes = []
+        lines = ["可用说话人："]
         for name in speakers:
             speaker = self.speaker_mgr.get_speaker(name)
             emotion_names = speaker.get_emotion_names() if speaker else []
             emotion_count = len(emotion_names)
             default_marker = " (默认)" if name == self.cfg.default_speaker else ""
-
-            content = [
-                Plain(f"说话人：{name}{default_marker}\n情绪数量：{emotion_count}\n")
-            ]
+            line = f"- {name} ({emotion_count} 个情绪){default_marker}"
             if emotion_names:
-                content.append(Plain(f"可用情绪：{', '.join(emotion_names)}"))
+                line += f"\n  情绪：{', '.join(emotion_names)}"
+            lines.append(line)
 
-            nodes.append(Node(uin=uin, name="TTS 助手", content=content))
-
-        return nodes
+        content = Plain("\n".join(lines))
+        return [Node(uin=uin, name="TTS 助手", content=[content])]
 
     @filter.llm_tool()
     async def gsv_tts(self, event: AstrMessageEvent, message: str = ""):
