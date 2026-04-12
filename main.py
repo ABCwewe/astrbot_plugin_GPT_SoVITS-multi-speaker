@@ -39,10 +39,10 @@ class GPTSoVITSPlugin(Star):
     def _init_services(self):
         """初始化所有说话人的服务和客户端"""
         for speaker_name in self.speaker_mgr.get_all_speaker_names():
-            self._get_or_create_service(speaker_name)
+            self._create_service(speaker_name)
 
-    def _get_or_create_service(self, speaker_name: str) -> GPTSoVITSService:
-        """获取或创建说话人对应的服务实例"""
+    def _create_service(self, speaker_name: str) -> GPTSoVITSService:
+        """创建说话人对应的服务实例（同步，不加载模型）"""
         if speaker_name not in self.services:
             speaker_cfg = self.speaker_mgr.get_speaker(speaker_name)
             if not speaker_cfg:
@@ -56,7 +56,11 @@ class GPTSoVITSPlugin(Star):
                 tts_params=self.cfg.tts_params,
             )
 
-        service = self.services[speaker_name]
+        return self.services[speaker_name]
+
+    async def _get_or_create_service(self, speaker_name: str) -> GPTSoVITSService:
+        """获取或创建说话人对应的服务实例，并加载模型（如需要）"""
+        service = self._create_service(speaker_name)
 
         if not service.model_loaded:
             await service.load_model()
