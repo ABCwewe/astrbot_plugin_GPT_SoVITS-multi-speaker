@@ -342,17 +342,21 @@ class GPTSoVITSPlugin(Star):
         sub_cmd = parts[0] if parts else ""
 
         if sub_cmd == "列表":
-            await self.list_speakers(event)
+            async for _ in self.list_speakers(event):
+                pass
         elif sub_cmd == "当前":
-            await self.current_speaker(event)
+            async for _ in self.current_speaker(event):
+                pass
         elif sub_cmd in ["设置默认", "设置"]:
             if len(parts) < 2:
                 yield event.plain_result("用法：GSV 设置默认 <说话人>")
                 return
             speaker_name = " ".join(parts[1:])
-            await self.set_default_speaker(event, speaker_name)
+            async for _ in self.set_default_speaker(event, speaker_name):
+                pass
         elif sub_cmd in ["重启", "重载"]:
-            await self.tts_control(event)
+            async for _ in self.tts_control(event):
+                pass
         else:
             yield event.plain_result(
                 f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
