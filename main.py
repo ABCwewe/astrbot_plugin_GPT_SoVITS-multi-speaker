@@ -342,7 +342,7 @@ class GPTSoVITSPlugin(Star):
         sub_cmd = parts[0] if parts else ""
 
         if sub_cmd == "列表":
-            uin = event.get_user_id()
+            uin = event.get_self_id()
             yield event.chain_result(self.list_speakers_nodes(int(uin) if uin else 0))
         elif sub_cmd == "当前":
             yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
