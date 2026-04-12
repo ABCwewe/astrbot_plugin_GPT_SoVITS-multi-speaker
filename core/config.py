@@ -236,6 +236,7 @@ class TTSParamsConfig(ConfigNode):
 
 class JudgeConfig(ConfigNode):
     enabled_llm: bool
+    enabled_command: bool
     provider_id: str
 
 

@@ -87,6 +87,7 @@ class EmotionJudger:
         system_prompt = (
             "你是一个情感分析专家。\n"
             f"{label_hint}"
+            '如果没有对应的感情，请输出：{"emotion": "默认"}'
             "请严格按照 JSON 格式输出，不要包含任何多余内容。\n"
             '输出示例：{"emotion": "开心"}'
         )

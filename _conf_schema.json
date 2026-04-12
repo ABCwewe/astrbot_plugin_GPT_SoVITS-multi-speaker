@@ -213,6 +213,12 @@
                 "hint": "开启后，将使用 LLM 模型判断当前文本的情绪，从而改变语音的情绪参数。若关闭，则使用情绪条目的触发词来匹配情绪",
                 "default": false
             },
+            "enabled_command": {
+                "description": "指令触发时启用 LLM 情感判断",
+                "type": "bool",
+                "hint": "控制指令触发的语音合成是否使用 LLM 进行情感判断。关闭时所有指令合成跳过 LLM 判断；开启时如果说话人只有1个情绪预设则跳过 LLM 判断",
+                "default": true
+            },
             "provider_id": {
                 "description": "判断情感用的 LLM 提供商",
                 "type": "string",

@@ -143,6 +143,7 @@ class GPTSoVITSPlugin(Star):
         speaker_name: str,
         text: str,
         specified_emotion_name: str | None = None,
+        is_command: bool = False,
     ) -> "EmotionConfig | None":
         """
         获取情绪配置
@@ -154,6 +155,7 @@ class GPTSoVITSPlugin(Star):
             speaker_name: 说话人名称
             text: 文本内容
             specified_emotion_name: 指令中指定的情绪名称
+            is_command: 是否由指令触发（区别于自动触发）
 
         Returns:
             EmotionConfig | None: 情绪配置
@@ -170,7 +172,17 @@ class GPTSoVITSPlugin(Star):
                 return emotion_config
 
         # 优先级 2: LLM 判断情绪
-        if self.cfg.judge.enabled_llm:
+        use_llm_judge = False
+        if is_command:
+            if self.cfg.judge.enabled_command:
+                speaker_cfg = self.speaker_mgr.get_speaker(speaker_name)
+                if speaker_cfg and len(speaker_cfg.emotions_list) > 1:
+                    use_llm_judge = True
+        else:
+            if self.cfg.judge.enabled_llm:
+                use_llm_judge = True
+
+        if use_llm_judge:
             emotion_label = await self.judger.judge_emotion(
                 event, speaker_name=speaker_name, text=text
             )
@@ -228,9 +240,9 @@ class GPTSoVITSPlugin(Star):
         # 使用默认说话人
         speaker_name = self.cfg.default_speaker
 
-        # 获取情绪参数
+        # 获取情绪参数（自动触发）
         emotion_config = await self._get_emotion_params(
-            event, speaker_name, combined_text
+            event, speaker_name, combined_text, is_command=False
         )
 
         service = await self._get_or_create_service(speaker_name)
@@ -276,9 +288,9 @@ class GPTSoVITSPlugin(Star):
         # 使用实际的说话人名称
         speaker_name = speaker_cfg.speaker_name
 
-        # 获取情绪配置
+        # 获取情绪配置（指令触发）
         emotion_config = await self._get_emotion_params(
-            event, speaker_name, text, emotion_name
+            event, speaker_name, text, emotion_name, is_command=True
         )
 
         service = await self._get_or_create_service(speaker_name)
@@ -389,9 +401,9 @@ class GPTSoVITSPlugin(Star):
         try:
             speaker_name = self.cfg.default_speaker
 
-            # 获取情绪参数
+            # 获取情绪参数（LLM 工具触发）
             emotion_config = await self._get_emotion_params(
-                event, speaker_name, message
+                event, speaker_name, message, is_command=False
             )
 
             service = await self._get_or_create_service(speaker_name)
