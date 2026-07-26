@@ -243,7 +243,6 @@ class JudgeConfig(ConfigNode):
 class CacheConfig(ConfigNode):
     enabled: bool
     expire_hours: int
-    path: str
 
 
 class PluginConfig(ConfigNode):
@@ -274,9 +273,7 @@ class PluginConfig(ConfigNode):
                 speaker_cfg = SpeakerConfig(speaker_data)
                 self._speakers_cache[speaker_cfg.speaker_name] = speaker_cfg
 
-        self.audio_dir = (
-            Path(self.cache.path) if self.cache.path else self.data_dir / "audio"
-        )
+        self.audio_dir = self.data_dir / "audio"
         self.audio_dir.mkdir(parents=True, exist_ok=True)
 
         self.save_config()

@@ -329,7 +329,9 @@ body {
 .speakers-layout {
   display: flex;
   gap: 16px;
-  align-items: flex-start;
+  align-items: stretch;
+  height: calc(100vh - 140px);
+  min-height: 400px;
 }
 .speakers-list {
   width: 240px;
@@ -337,6 +339,29 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.speakers-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.speakers-list-header .list-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.speakers-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow-y: auto;
 }
 .speaker-item {
   padding: 12px 14px;
@@ -348,6 +373,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 .speaker-item:hover { border-color: var(--primary); background: var(--primary-light); }
 .speaker-item.active { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 1px var(--primary); }
@@ -358,6 +384,8 @@ body {
 .speaker-editor {
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 /* ===== Emotion Cards ===== */
@@ -468,9 +496,11 @@ body {
 }
 
 @media (max-width: 700px) {
-  .speakers-layout { flex-direction: column; }
-  .speakers-list { width: 100%; flex-direction: row; overflow-x: auto; }
-  .speaker-item { min-width: 160px; }
+  .speakers-layout { flex-direction: column; height: auto; }
+  .speakers-list { width: 100%; max-height: 200px; }
+  .speakers-list-items { flex-direction: row; overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; gap: 8px; }
+  .speaker-item { min-width: 160px; flex-shrink: 0; }
+  .speaker-editor { max-height: none; overflow-y: visible; }
   .row { flex-direction: column; }
   .row > .fg { min-width: 100%; }
   .topbar { flex-wrap: wrap; }

@@ -178,8 +178,13 @@ function renderSpeakers() {
     <div class="section-title">说话人管理</div>
     <div class="speakers-layout">
       <div class="speakers-list">
-        ${listHtml}
-        <button class="btn-add" data-action="add-speaker">+ 添加说话人</button>
+        <div class="speakers-list-header">
+          <span class="list-title">${speakers.length} 个说话人</span>
+          <button class="btn btn-sm" data-action="add-speaker">+ 添加</button>
+        </div>
+        <div class="speakers-list-items">
+          ${listHtml}
+        </div>
       </div>
       <div class="speaker-editor">
         ${renderSpeakerEditor(selectedSpeakerIdx)}
@@ -400,8 +405,8 @@ function renderCache() {
       </div>
       <div class="fg fg-full">
         <span class="fg-label">缓存路径</span>
-        <input type="text" data-path="cache.path" value="${esc(g('cache.path', ''))}" placeholder="data/plugins_data/astrbot_plugin_GPT_SoVITS/audio">
-        <div class="fg-hint">请使用 '/' 分隔路径，支持绝对路径和相对路径</div>
+        <input type="text" value="data/plugin_data/astrbot_plugin_GPT_SoVITS/audio" disabled>
+        <div class="fg-hint">缓存路径由系统自动管理，使用插件专属数据目录，无需手动配置</div>
       </div>
     </div>
   `;

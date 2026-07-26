@@ -15,6 +15,7 @@ from astrbot.api.web import error_response, json_response, request
 from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import Node, Plain, Record
 from astrbot.core.platform import AstrMessageEvent
+from astrbot.core.star.filter.command import GreedyStr
 
 from .core.client import GSVApiClient, GSVRequestResult
 from .core.config import PluginConfig
@@ -144,6 +145,11 @@ class GPTSoVITSPlugin(Star):
 
             self.cfg._data.clear()
             self.cfg._data.update(data)
+
+            cache_cfg = self.cfg._data.get("cache")
+            if isinstance(cache_cfg, dict):
+                cache_cfg.pop("path", None)
+
             self.cfg.save_config()
 
             await self._reload_after_config_save()
@@ -158,10 +164,17 @@ class GPTSoVITSPlugin(Star):
         """GET /providers -> 返回可用的 LLM 提供商列表"""
         try:
             providers = self.context.get_all_providers()
-            result = [
-                {"id": getattr(p, "id", ""), "name": getattr(p, "model_name", "") or getattr(p, "id", "")}
-                for p in providers
-            ]
+            result = []
+            for p in providers:
+                try:
+                    meta = p.meta()
+                    provider_id = meta.id
+                    model_name = meta.model or provider_id
+                except Exception:
+                    provider_id = getattr(p, "id", "") or p.provider_config.get("id", "")
+                    model_name = getattr(p, "model_name", "") or provider_id
+                display_name = f"{model_name} ({provider_id})" if model_name else provider_id
+                result.append({"id": provider_id, "name": display_name})
             return json_response({"providers": result})
         except Exception as e:
             logger.error(f"获取提供商列表失败: {e}")
@@ -437,22 +450,44 @@ class GPTSoVITSPlugin(Star):
 
         yield event.chain_result([self._to_record(res)])
 
-    @filter.command("设置默认说话人")
-    async def set_default_speaker(self, event: AstrMessageEvent, speaker_name: str):
-        """设置全局默认说话人"""
-        # 支持别名查找
+    @filter.command_group("GSV", alias={"gsv"})
+    def gsv_group(self):
+        """GSV 管理指令组"""
+
+    @gsv_group.command("列表", alias={"list"})
+    async def gsv_list(self, event: AstrMessageEvent):
+        """列出所有可用说话人"""
+        if not self.cfg.enabled:
+            return
+        uin = event.get_self_id()
+        yield event.chain_result(self.list_speakers_nodes(int(uin) if uin else 0))
+
+    @gsv_group.command("当前", alias={"current"})
+    async def gsv_current(self, event: AstrMessageEvent):
+        """查看当前默认说话人"""
+        if not self.cfg.enabled:
+            return
+        yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
+
+    @gsv_group.command("设置默认", alias={"设置"})
+    async def gsv_set_default(self, event: AstrMessageEvent, speaker_name: GreedyStr):
+        """设置默认说话人"""
+        if not self.cfg.enabled:
+            return
+        speaker_name = (speaker_name or "").strip()
+        if not speaker_name:
+            yield event.plain_result("用法：GSV 设置默认 <说话人>")
+            return
         speaker_cfg = self.speaker_mgr.find_speaker_by_name_or_alias(speaker_name)
         if not speaker_cfg:
             yield event.plain_result(f"说话人 {speaker_name} 不存在")
             return
-
-        # 使用实际的说话人名称
         self.cfg.default_speaker = speaker_cfg.speaker_name
         self.cfg.save_config()
         yield event.plain_result(f"已设置默认说话人为：{speaker_cfg.speaker_name}")
 
-    @filter.command("重启 GSV", alias={"重启 gsv"})
-    async def tts_control(self, event: AstrMessageEvent):
+    @gsv_group.command("重启", alias={"重载"})
+    async def gsv_restart(self, event: AstrMessageEvent):
         """重启 GPT-SoVITS"""
         if not self.cfg.enabled:
             return
@@ -460,59 +495,21 @@ class GPTSoVITSPlugin(Star):
         service = await self._get_or_create_service(self.cfg.default_speaker)
         await service.restart()
 
-    @filter.command("GSV")
-    async def on_gsv_command(self, event: AstrMessageEvent):
-        """GSV 管理指令（不合成语音）"""
+    @gsv_group.command("帮助", alias={"help"})
+    async def gsv_help(self, event: AstrMessageEvent):
+        """查看 GSV 指令帮助"""
         if not self.cfg.enabled:
             return
-
-        # 去掉指令名 "GSV" 或 "gsv"
-        msg = event.message_str
-        stripped = False
-        for alias in ["GSV ", "gsv "]:
-            if msg.startswith(alias):
-                msg = msg[len(alias) :]
-                stripped = True
-                break
-        if not stripped:
-            if msg.startswith("GSV") or msg.startswith("gsv"):
-                msg = msg[3:]
-            msg = msg.lstrip()
-
-        if not msg:
-            yield event.plain_result(
-                "GSV 指令用法：\n"
-                "- GSV 列表：列出所有说话人\n"
-                "- GSV 当前：查看当前默认说话人\n"
-                "- GSV 设置默认 <说话人>：设置默认说话人\n"
-                "- GSV 重启：重启 TTS 服务\n\n"
-                "语音合成：直接发送 <说话人>[情绪]说 <内容>，"
-                "例如「丹瑾说 你好」「丹瑾生气说 不喜欢你」"
-            )
-            return
-
-        parts = msg.split()
-        sub_cmd = parts[0] if parts else ""
-
-        if sub_cmd == "列表":
-            uin = event.get_self_id()
-            yield event.chain_result(self.list_speakers_nodes(int(uin) if uin else 0))
-        elif sub_cmd == "当前":
-            yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
-        elif sub_cmd in ["设置默认", "设置"]:
-            if len(parts) < 2:
-                yield event.plain_result("用法：GSV 设置默认 <说话人>")
-                return
-            speaker_name = " ".join(parts[1:])
-            async for _ in self.set_default_speaker(event, speaker_name):
-                pass
-        elif sub_cmd in ["重启", "重载"]:
-            async for _ in self.tts_control(event):
-                pass
-        else:
-            yield event.plain_result(
-                f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
-            )
+        yield event.plain_result(
+            "GSV 指令用法：\n"
+            "- GSV 列表：列出所有说话人\n"
+            "- GSV 当前：查看当前默认说话人\n"
+            "- GSV 设置默认 <说话人>：设置默认说话人\n"
+            "- GSV 重启：重启 TTS 服务\n"
+            "- GSV 帮助：查看此帮助\n\n"
+            "语音合成：直接发送 <说话人>[情绪]说 <内容>，"
+            "例如「丹瑾说 你好」「丹瑾生气说 不喜欢你」"
+        )
 
     def list_speakers_nodes(self, uin: int) -> list[Node]:
         """生成说话人列表的 Node 节点（单条消息包含所有说话人）"""
