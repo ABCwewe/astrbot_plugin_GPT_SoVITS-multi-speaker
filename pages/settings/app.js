@@ -3,6 +3,7 @@ let config = {};
 let providers = [];
 let selectedSpeakerIdx = 0;
 let expandedEmotions = new Set();
+let speakerScrollTarget = null; // null | 'selected' | 'bottom'
 
 // ===== Utilities =====
 const $ = (id) => document.getElementById(id);
@@ -69,9 +70,17 @@ function renderTab(tab) {
   if (!content) return;
   const renderers = { basic: renderBasic, speakers: renderSpeakers, tts: renderTTS, auto: renderAuto, judge: renderJudge, cache: renderCache };
   const fn = renderers[tab];
-  content.innerHTML = fn ? fn() : '';
-  bindControls();
-  if (tab === 'speakers') bindSpeakerControls();
+  if (!fn) { content.innerHTML = ''; return; }
+  const html = fn();
+  if (tab === 'speakers') {
+    content.innerHTML = html;
+    bindControls();
+    bindSpeakerControls();
+    scrollSpeakerListToTarget();
+  } else {
+    content.innerHTML = `<div class="content-scroll">${html}</div>`;
+    bindControls();
+  }
 }
 
 // ===== Form Components =====
@@ -464,39 +473,35 @@ function renderCurrentTab() {
   if (activeTab) renderTab(activeTab.dataset.tab);
 }
 
-// ===== Speaker Controls =====
-function bindSpeakerControls() {
-  $$('#content [data-speaker-idx]').forEach(el => {
-    el.onclick = () => {
-      selectedSpeakerIdx = parseInt(el.dataset.speakerIdx);
-      expandedEmotions.clear();
-      renderTab('speakers');
-      bindSpeakerControls();
-      bindControls();
-    };
+function scrollSpeakerListToTarget() {
+  requestAnimationFrame(() => {
+    if (speakerScrollTarget === 'bottom') {
+      const listItems = document.querySelector('.speakers-list-items');
+      if (listItems) listItems.scrollTop = listItems.scrollHeight;
+    } else if (speakerScrollTarget === 'selected') {
+      const active = document.querySelector('.speaker-item.active');
+      if (active) active.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }
+    speakerScrollTarget = null;
   });
-  $$('#content [data-action="add-speaker"]').forEach(el => {
-    el.onclick = () => {
-      const speakers = g('speakers', []);
-      speakers.push({
-        speaker_name: 'speaker_' + (speakers.length + 1),
-        alias: '',
-        gpt_path: '',
-        sovits_path: '',
-        base_url: 'http://127.0.0.1:9880',
-        timeout: 60,
-        text_lang: 'zh',
-        emotions: [{ name: '默认', keywords: [], ref_audio_path: '', prompt_text: '', prompt_lang: 'zh', speed_factor: 1.0, fragment_interval: 0.7 }]
-      });
-      s('speakers', speakers);
-      selectedSpeakerIdx = speakers.length - 1;
-      expandedEmotions.clear();
-      renderTab('speakers');
-      bindSpeakerControls();
-      bindControls();
-      setStatus('未保存', 'warn');
-    };
+}
+
+function updateSpeakerEditor() {
+  const editor = document.querySelector('.speaker-editor');
+  if (!editor) return;
+  editor.innerHTML = renderSpeakerEditor(selectedSpeakerIdx);
+  bindControls();
+  bindSpeakerEditorControls();
+  editor.scrollTop = 0;
+}
+
+function updateSpeakerActiveClass() {
+  $$('.speaker-item').forEach((el, i) => {
+    el.classList.toggle('active', i === selectedSpeakerIdx);
   });
+}
+
+function bindSpeakerEditorControls() {
   $$('#content [data-action="delete-speaker"]').forEach(el => {
     el.onclick = () => {
       const idx = parseInt(el.dataset.idx);
@@ -505,6 +510,7 @@ function bindSpeakerControls() {
       s('speakers', speakers);
       if (selectedSpeakerIdx >= speakers.length) selectedSpeakerIdx = Math.max(0, speakers.length - 1);
       expandedEmotions.clear();
+      speakerScrollTarget = 'selected';
       renderTab('speakers');
       bindSpeakerControls();
       bindControls();
@@ -526,6 +532,7 @@ function bindSpeakerControls() {
       });
       s(`speakers.${spIdx}.emotions`, emotions);
       expandedEmotions.add(`${spIdx}-${emotions.length - 1}`);
+      speakerScrollTarget = 'selected';
       renderTab('speakers');
       bindSpeakerControls();
       bindControls();
@@ -541,6 +548,7 @@ function bindSpeakerControls() {
       emotions.splice(emoIdx, 1);
       s(`speakers.${spIdx}.emotions`, emotions);
       expandedEmotions.clear();
+      speakerScrollTarget = 'selected';
       renderTab('speakers');
       bindSpeakerControls();
       bindControls();
@@ -552,11 +560,48 @@ function bindSpeakerControls() {
       const key = el.dataset.toggleEmotion;
       if (expandedEmotions.has(key)) expandedEmotions.delete(key);
       else expandedEmotions.add(key);
+      speakerScrollTarget = 'selected';
       renderTab('speakers');
       bindSpeakerControls();
       bindControls();
     };
   });
+}
+
+// ===== Speaker Controls =====
+function bindSpeakerControls() {
+  $$('#content [data-speaker-idx]').forEach(el => {
+    el.onclick = () => {
+      selectedSpeakerIdx = parseInt(el.dataset.speakerIdx);
+      expandedEmotions.clear();
+      updateSpeakerActiveClass();
+      updateSpeakerEditor();
+    };
+  });
+  $$('#content [data-action="add-speaker"]').forEach(el => {
+    el.onclick = () => {
+      const speakers = g('speakers', []);
+      speakers.push({
+        speaker_name: 'speaker_' + (speakers.length + 1),
+        alias: '',
+        gpt_path: '',
+        sovits_path: '',
+        base_url: 'http://127.0.0.1:9880',
+        timeout: 60,
+        text_lang: 'zh',
+        emotions: [{ name: '默认', keywords: [], ref_audio_path: '', prompt_text: '', prompt_lang: 'zh', speed_factor: 1.0, fragment_interval: 0.7 }]
+      });
+      s('speakers', speakers);
+      selectedSpeakerIdx = speakers.length - 1;
+      expandedEmotions.clear();
+      speakerScrollTarget = 'bottom';
+      renderTab('speakers');
+      bindSpeakerControls();
+      bindControls();
+      setStatus('未保存', 'warn');
+    };
+  });
+  bindSpeakerEditorControls();
 }
 
 // ===== Save =====
