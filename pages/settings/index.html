@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GPT-SoVITS 配置中心</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <h1><span class="logo-icon">🎙️</span> GPT-SoVITS 配置中心</h1>
+    <span class="badge" id="status">加载中...</span>
+    <button class="btn btn-primary" id="btn-save">💾 保存配置</button>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="basic">基础设置</button>
+    <button class="tab" data-tab="speakers">说话人管理</button>
+    <button class="tab" data-tab="tts">TTS 参数</button>
+    <button class="tab" data-tab="auto">自动触发</button>
+    <button class="tab" data-tab="judge">情感判断</button>
+    <button class="tab" data-tab="cache">缓存设置</button>
+  </nav>
+
+  <main class="content" id="content"></main>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

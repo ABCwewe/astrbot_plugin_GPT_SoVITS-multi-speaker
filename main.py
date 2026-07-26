@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import base64
+import json
 import random
+import copy
+from sys import maxsize
 
 from typing import TYPE_CHECKING
 
 from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star
+from astrbot.api.web import error_response, json_response, request
 from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import Node, Plain, Record
 from astrbot.core.platform import AstrMessageEvent
+from astrbot.core.star.filter.command import GreedyStr
 
 from .core.client import GSVApiClient, GSVRequestResult
 from .core.config import PluginConfig
@@ -20,7 +25,9 @@ from .core.local_data import LocalDataManager
 from .core.service import GPTSoVITSService
 
 if TYPE_CHECKING:
-    from .core.config import EmotionConfig
+    from .core.config import EmotionConfig, SpeakerConfig
+
+PLUGIN_NAME = "astrbot_plugin_GPT_SoVITS-multi-speaker"
 
 
 class GPTSoVITSPlugin(Star):
@@ -35,6 +42,8 @@ class GPTSoVITSPlugin(Star):
         self.services: dict[str, GPTSoVITSService] = {}
         self.clients: dict[str, GSVApiClient] = {}
         self._init_services()
+
+        self._register_web_apis()
 
     def _init_services(self):
         """初始化所有说话人的服务和客户端"""
@@ -66,6 +75,125 @@ class GPTSoVITSPlugin(Star):
 
         return service
 
+    # ==================== Pages Web API ====================
+
+    def _register_web_apis(self) -> None:
+        """注册 WebUI Pages 所需的 API 端点"""
+        self.context.register_web_api(
+            f"/{PLUGIN_NAME}/config",
+            self._api_get_config,
+            ["GET"],
+            "获取插件完整配置",
+        )
+        self.context.register_web_api(
+            f"/{PLUGIN_NAME}/config",
+            self._api_save_config,
+            ["POST"],
+            "保存插件配置",
+        )
+        self.context.register_web_api(
+            f"/{PLUGIN_NAME}/providers",
+            self._api_get_providers,
+            ["GET"],
+            "获取可用的 LLM 提供商列表",
+        )
+
+    async def _api_get_config(self):
+        """GET /config -> 返回当前完整配置，emotions 字段解析为列表"""
+        try:
+            data = copy.deepcopy(dict(self.cfg.raw_data()))
+            speakers = data.get("speakers", [])
+            for speaker in speakers:
+                if isinstance(speaker, dict):
+                    emotions_raw = speaker.get("emotions", "[]")
+                    if isinstance(emotions_raw, str):
+                        try:
+                            speaker["emotions"] = json.loads(emotions_raw)
+                        except json.JSONDecodeError:
+                            speaker["emotions"] = []
+            return json_response(data)
+        except Exception as e:
+            logger.error(f"获取配置失败: {e}")
+            return error_response(f"获取配置失败: {e}", status_code=500)
+
+    async def _api_save_config(self):
+        """POST /config -> 验证并保存配置，emotions 字段序列化为 JSON 字符串"""
+        try:
+            payload = await request.json(default={})
+            if not isinstance(payload, dict):
+                return error_response("无效的请求数据")
+
+            data = copy.deepcopy(payload)
+
+            speakers = data.get("speakers", [])
+            for speaker in speakers:
+                if isinstance(speaker, dict):
+                    emotions = speaker.get("emotions")
+                    if isinstance(emotions, list):
+                        speaker["emotions"] = json.dumps(
+                            emotions, ensure_ascii=False, indent=2
+                        )
+                    elif isinstance(emotions, str):
+                        try:
+                            json.loads(emotions)
+                        except json.JSONDecodeError:
+                            return error_response(
+                                f"说话人 {speaker.get('speaker_name', '?')} 的情绪配置 JSON 无效"
+                            )
+                    elif emotions is None:
+                        speaker["emotions"] = "[]"
+
+            self.cfg._data.clear()
+            self.cfg._data.update(data)
+
+            cache_cfg = self.cfg._data.get("cache")
+            if isinstance(cache_cfg, dict):
+                cache_cfg.pop("path", None)
+
+            self.cfg.save_config()
+
+            await self._reload_after_config_save()
+
+            logger.info("WebUI Pages 配置已更新并保存")
+            return json_response({"success": True})
+        except Exception as e:
+            logger.error(f"保存配置失败: {e}")
+            return error_response(f"保存配置失败: {e}", status_code=500)
+
+    async def _api_get_providers(self):
+        """GET /providers -> 返回可用的 LLM 提供商列表"""
+        try:
+            providers = self.context.get_all_providers()
+            result = []
+            for p in providers:
+                try:
+                    meta = p.meta()
+                    provider_id = meta.id
+                    model_name = meta.model or provider_id
+                except Exception:
+                    provider_id = getattr(p, "id", "") or p.provider_config.get("id", "")
+                    model_name = getattr(p, "model_name", "") or provider_id
+                display_name = f"{model_name} ({provider_id})" if model_name else provider_id
+                result.append({"id": provider_id, "name": display_name})
+            return json_response({"providers": result})
+        except Exception as e:
+            logger.error(f"获取提供商列表失败: {e}")
+            return error_response(f"获取提供商列表失败: {e}", status_code=500)
+
+    async def _reload_after_config_save(self) -> None:
+        """保存配置后重新初始化服务和客户端"""
+        for client in self.clients.values():
+            await client.close()
+        self.clients.clear()
+        self.services.clear()
+
+        self.cfg = PluginConfig(self.cfg._data, self.context)
+        self.local_data = LocalDataManager(self.cfg)
+        self.speaker_mgr = SpeakerManager(self.cfg)
+        self.judger = EmotionJudger(self.cfg, self.speaker_mgr)
+
+        self._init_services()
+
     async def initialize(self):
         if self.cfg.enabled:
             default_speaker = self.cfg.default_speaker
@@ -92,50 +220,84 @@ class GPTSoVITSPlugin(Star):
         b64 = base64.urlsafe_b64encode(res.data).decode()
         return Record.fromBase64(b64)
 
-    def _parse_say_command(
+    def _parse_say_pattern(
         self, message_str: str
     ) -> tuple[str | None, str | None, str]:
         """
-        解析'说'指令参数
+        解析 "说" 触发模式（on-message hook）
 
-        返回：(speaker_name, emotion_name, text)
-        - 说 你好 -> (None, None, "你好") 使用默认说话人
-        - 说 B 你好 -> ("B", None, "你好")
-        - 说 B 开心 你好 -> ("B", "开心", "你好")
+        支持格式：
+        - "说 <文本>"                          -> (默认说话人, None, 文本)
+        - "<说话人>说 <文本>"                   -> (说话人, None, 文本)
+        - "<说话人><情绪>说 <文本>"             -> (说话人, 情绪, 文本)
+        - "<情绪>说 <文本>"                     -> (默认说话人, 情绪, 文本)
+
+        Returns:
+            (speaker_name, emotion_name, text) 或 (None, None, "")
         """
-        parts = message_str.split()
-
-        if len(parts) == 0:
+        msg = message_str.strip()
+        if not msg:
             return None, None, ""
 
-        speaker_name = None
-        emotion_name = None
-        text_start = 0
+        say_char = "说"
 
-        # 先尝试通过名称或别名查找说话人
-        if parts[0]:
-            speaker_cfg = self.speaker_mgr.find_speaker_by_name_or_alias(parts[0])
-            if speaker_cfg:
-                speaker_name = speaker_cfg.speaker_name
-                text_start = 1
+        # 情况 1: 以 "说" 开头 -> 默认说话人，无情绪
+        if msg.startswith(say_char):
+            text = msg[len(say_char):].strip()
+            if text:
+                return self.cfg.default_speaker, None, text
+            return None, None, ""
 
-        # 检查第二个词是否为情绪名称
-        if text_start < len(parts):
-            current_speaker = speaker_name or self.cfg.default_speaker
-            speaker_cfg = self.speaker_mgr.find_speaker_by_name_or_alias(
-                current_speaker
-            )
+        # 收集所有 (名称, 说话人名, 说话人配置) 对，按名称长度降序
+        all_names: list[tuple[str, str, SpeakerConfig]] = []
+        for speaker_name in self.speaker_mgr.get_all_speaker_names():
+            speaker_cfg = self.speaker_mgr.get_speaker(speaker_name)
+            if not speaker_cfg:
+                continue
+            for name in [speaker_name] + speaker_cfg.alias_list:
+                all_names.append((name, speaker_name, speaker_cfg))
+        all_names.sort(key=lambda x: len(x[0]), reverse=True)
 
-            if speaker_cfg:
-                emotion_names = speaker_cfg.get_emotion_names()
-                if parts[text_start] in emotion_names:
-                    emotion_name = parts[text_start]
-                    text_start += 1
+        # 情况 2/3: 说话人 + 可选情绪 + 说
+        for name, speaker_name, speaker_cfg in all_names:
+            if not msg.startswith(name):
+                continue
+            remainder = msg[len(name):]
 
-        # 剩余部分为文本
-        text = " ".join(parts[text_start:]) if text_start < len(parts) else ""
+            # 说话人 + 说
+            if remainder.startswith(say_char):
+                text = remainder[len(say_char):].strip()
+                if text:
+                    return speaker_name, None, text
+                return None, None, ""
 
-        return speaker_name, emotion_name, text
+            # 说话人 + 情绪 + 说
+            for emotion_name in sorted(
+                speaker_cfg.get_emotion_names(), key=len, reverse=True
+            ):
+                if remainder.startswith(emotion_name):
+                    after_emotion = remainder[len(emotion_name):]
+                    if after_emotion.startswith(say_char):
+                        text = after_emotion[len(say_char):].strip()
+                        if text:
+                            return speaker_name, emotion_name, text
+                        return None, None, ""
+
+        # 情况 4: 情绪 + 说（使用默认说话人）
+        default_speaker_cfg = self.speaker_mgr.get_speaker(self.cfg.default_speaker)
+        if default_speaker_cfg:
+            for emotion_name in sorted(
+                default_speaker_cfg.get_emotion_names(), key=len, reverse=True
+            ):
+                if msg.startswith(emotion_name):
+                    remainder = msg[len(emotion_name):]
+                    if remainder.startswith(say_char):
+                        text = remainder[len(say_char):].strip()
+                        if text:
+                            return self.cfg.default_speaker, emotion_name, text
+                        return None, None, ""
+
+        return None, None, ""
 
     async def _get_emotion_params(
         self,
@@ -254,38 +416,22 @@ class GPTSoVITSPlugin(Star):
         chain.clear()
         chain.append(self._to_record(res))
 
-    @filter.command("说")
-    async def on_command(self, event: AstrMessageEvent):
-        """说 [说话人] [情绪] <内容>"""
+    @filter.event_message_type(filter.EventMessageType.ALL, priority=maxsize - 10)
+    async def on_say_message(self, event: AstrMessageEvent):
+        """on-message hook：检测 <说话人><情绪?>说 <文本> 模式"""
         if not self.cfg.enabled:
             return
 
-        # 去掉指令名 "说"
-        msg = event.message_str
-        stripped = False
-        for alias in ["说 "]:
-            if msg.startswith(alias):
-                msg = msg[len(alias) :]
-                stripped = True
-                break
-        if not stripped:
-            if msg.startswith("说"):
-                msg = msg[1:]
-            msg = msg.lstrip()
-
-        speaker_name, emotion_name, text = self._parse_say_command(msg)
-
-        # 使用默认说话人
-        if not speaker_name:
-            speaker_name = self.cfg.default_speaker
+        speaker_name, emotion_name, text = self._parse_say_pattern(
+            event.message_str
+        )
+        if speaker_name is None:
+            return
 
         # 验证说话人是否存在（支持别名查找）
         speaker_cfg = self.speaker_mgr.find_speaker_by_name_or_alias(speaker_name)
         if not speaker_cfg:
-            yield event.plain_result(f"说话人 {speaker_name} 不存在")
             return
-
-        # 使用实际的说话人名称
         speaker_name = speaker_cfg.speaker_name
 
         # 获取情绪配置（指令触发）
@@ -296,28 +442,52 @@ class GPTSoVITSPlugin(Star):
         service = await self._get_or_create_service(speaker_name)
         res = await service.inference(text, emotion_config=emotion_config)
 
+        event.stop_event()
+
         if not bool(res):
             yield event.plain_result(res.error)
             return
 
         yield event.chain_result([self._to_record(res)])
 
-    @filter.command("设置默认说话人")
-    async def set_default_speaker(self, event: AstrMessageEvent, speaker_name: str):
-        """设置全局默认说话人"""
-        # 支持别名查找
+    @filter.command_group("GSV", alias={"gsv"})
+    def gsv_group(self):
+        """GSV 管理指令组"""
+
+    @gsv_group.command("列表", alias={"list"})
+    async def gsv_list(self, event: AstrMessageEvent):
+        """列出所有可用说话人"""
+        if not self.cfg.enabled:
+            return
+        uin = event.get_self_id()
+        yield event.chain_result(self.list_speakers_nodes(int(uin) if uin else 0))
+
+    @gsv_group.command("当前", alias={"current"})
+    async def gsv_current(self, event: AstrMessageEvent):
+        """查看当前默认说话人"""
+        if not self.cfg.enabled:
+            return
+        yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
+
+    @gsv_group.command("设置默认", alias={"设置"})
+    async def gsv_set_default(self, event: AstrMessageEvent, speaker_name: GreedyStr):
+        """设置默认说话人"""
+        if not self.cfg.enabled:
+            return
+        speaker_name = (speaker_name or "").strip()
+        if not speaker_name:
+            yield event.plain_result("用法：GSV 设置默认 <说话人>")
+            return
         speaker_cfg = self.speaker_mgr.find_speaker_by_name_or_alias(speaker_name)
         if not speaker_cfg:
             yield event.plain_result(f"说话人 {speaker_name} 不存在")
             return
-
-        # 使用实际的说话人名称
         self.cfg.default_speaker = speaker_cfg.speaker_name
         self.cfg.save_config()
         yield event.plain_result(f"已设置默认说话人为：{speaker_cfg.speaker_name}")
 
-    @filter.command("重启 GSV", alias={"重启 gsv"})
-    async def tts_control(self, event: AstrMessageEvent):
+    @gsv_group.command("重启", alias={"重载"})
+    async def gsv_restart(self, event: AstrMessageEvent):
         """重启 GPT-SoVITS"""
         if not self.cfg.enabled:
             return
@@ -325,53 +495,21 @@ class GPTSoVITSPlugin(Star):
         service = await self._get_or_create_service(self.cfg.default_speaker)
         await service.restart()
 
-    @filter.command("GSV")
-    async def on_gsv_command(self, event: AstrMessageEvent):
-        """GSV 管理指令（不合成语音）"""
+    @gsv_group.command("帮助", alias={"help"})
+    async def gsv_help(self, event: AstrMessageEvent):
+        """查看 GSV 指令帮助"""
         if not self.cfg.enabled:
             return
-
-        # 去掉指令名 "GSV" 或 "gsv"
-        msg = event.message_str
-        stripped = False
-        for alias in ["GSV ", "gsv "]:
-            if msg.startswith(alias):
-                msg = msg[len(alias) :]
-                stripped = True
-                break
-        if not stripped:
-            if msg.startswith("GSV") or msg.startswith("gsv"):
-                msg = msg[3:]
-            msg = msg.lstrip()
-
-        if not msg:
-            yield event.plain_result(
-                "GSV 指令用法：\n- GSV 列表：列出所有说话人\n- GSV 当前：查看当前默认说话人\n- GSV 设置默认 <说话人>：设置默认说话人\n- GSV 重启：重启 TTS 服务"
-            )
-            return
-
-        parts = msg.split()
-        sub_cmd = parts[0] if parts else ""
-
-        if sub_cmd == "列表":
-            uin = event.get_self_id()
-            yield event.chain_result(self.list_speakers_nodes(int(uin) if uin else 0))
-        elif sub_cmd == "当前":
-            yield event.plain_result(f"当前默认说话人：{self.cfg.default_speaker}")
-        elif sub_cmd in ["设置默认", "设置"]:
-            if len(parts) < 2:
-                yield event.plain_result("用法：GSV 设置默认 <说话人>")
-                return
-            speaker_name = " ".join(parts[1:])
-            async for _ in self.set_default_speaker(event, speaker_name):
-                pass
-        elif sub_cmd in ["重启", "重载"]:
-            async for _ in self.tts_control(event):
-                pass
-        else:
-            yield event.plain_result(
-                f"未知指令：{sub_cmd}\n可用指令：列表、当前、设置默认、重启"
-            )
+        yield event.plain_result(
+            "GSV 指令用法：\n"
+            "- GSV 列表：列出所有说话人\n"
+            "- GSV 当前：查看当前默认说话人\n"
+            "- GSV 设置默认 <说话人>：设置默认说话人\n"
+            "- GSV 重启：重启 TTS 服务\n"
+            "- GSV 帮助：查看此帮助\n\n"
+            "语音合成：直接发送 <说话人>[情绪]说 <内容>，"
+            "例如「丹瑾说 你好」「丹瑾生气说 不喜欢你」"
+        )
 
     def list_speakers_nodes(self, uin: int) -> list[Node]:
         """生成说话人列表的 Node 节点（单条消息包含所有说话人）"""

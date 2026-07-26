@@ -1,0 +1,8 @@
+{
+  "pages": {
+    "settings": {
+      "title": "GPT-SoVITS Settings",
+      "description": "GPT-SoVITS Multi-Speaker TTS Plugin Configuration"
+    }
+  }
+}
