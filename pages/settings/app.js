@@ -501,6 +501,14 @@ function updateSpeakerActiveClass() {
   });
 }
 
+function updateSpeakerEmotionCount(speakerIdx) {
+  const badge = document.querySelector(`.speaker-item[data-speaker-idx="${speakerIdx}"] .emotion-count`);
+  if (badge) {
+    const count = getEmotions(speakerIdx).length;
+    badge.textContent = `${count} 情绪`;
+  }
+}
+
 function bindSpeakerEditorControls() {
   $$('#content [data-action="delete-speaker"]').forEach(el => {
     el.onclick = () => {
@@ -532,10 +540,8 @@ function bindSpeakerEditorControls() {
       });
       s(`speakers.${spIdx}.emotions`, emotions);
       expandedEmotions.add(`${spIdx}-${emotions.length - 1}`);
-      speakerScrollTarget = 'selected';
-      renderTab('speakers');
-      bindSpeakerControls();
-      bindControls();
+      updateSpeakerEmotionCount(spIdx);
+      updateSpeakerEditor();
       setStatus('未保存', 'warn');
     };
   });
@@ -548,22 +554,23 @@ function bindSpeakerEditorControls() {
       emotions.splice(emoIdx, 1);
       s(`speakers.${spIdx}.emotions`, emotions);
       expandedEmotions.clear();
-      speakerScrollTarget = 'selected';
-      renderTab('speakers');
-      bindSpeakerControls();
-      bindControls();
+      updateSpeakerEmotionCount(spIdx);
+      updateSpeakerEditor();
       setStatus('未保存', 'warn');
     };
   });
   $$('#content [data-toggle-emotion]').forEach(el => {
     el.onclick = () => {
       const key = el.dataset.toggleEmotion;
-      if (expandedEmotions.has(key)) expandedEmotions.delete(key);
-      else expandedEmotions.add(key);
-      speakerScrollTarget = 'selected';
-      renderTab('speakers');
-      bindSpeakerControls();
-      bindControls();
+      const card = document.querySelector(`[data-emotion-card="${key}"]`);
+      if (!card) return;
+      if (expandedEmotions.has(key)) {
+        expandedEmotions.delete(key);
+        card.classList.remove('expanded');
+      } else {
+        expandedEmotions.add(key);
+        card.classList.add('expanded');
+      }
     };
   });
 }
