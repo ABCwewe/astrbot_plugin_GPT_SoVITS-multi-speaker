@@ -9,12 +9,14 @@
         "description": "默认说话人名称",
         "type": "string",
         "hint": "在不指定说话人时使用的默认说话人名称",
-        "default": "default"
+        "default": "default",
+        "invisible": true
     },
     "speakers": {
         "description": "说话人配置列表",
         "type": "template_list",
         "hint": "每个说话人有独立的模型、服务器和情绪配置",
+        "invisible": true,
         "templates": {
             "speaker": {
                 "name": "说话人配置",
@@ -97,6 +99,7 @@
         "description": "TTS 全局参数",
         "type": "object",
         "hint": "GPT-SoVITS API 的全局合成参数",
+        "invisible": true,
         "items": {
             "media_type": {
                 "description": "输出音频格式",
@@ -171,6 +174,7 @@
         "description": "自动触发配置",
         "type": "object",
         "hint": "本插件有一定概率主动将 bot 本来要发送的文本转成语音发送",
+        "invisible": true,
         "items": {
             "only_llm_result": {
                 "description": "只处理 LLM 结果",
@@ -206,6 +210,7 @@
         "description": "LLM 情感判断配置",
         "hint": "",
         "type": "object",
+        "invisible": true,
         "items": {
             "enabled_llm": {
                 "description": "使用 LLM 判断情感",
@@ -232,6 +237,7 @@
         "description": "缓存配置",
         "type": "object",
         "hint": "",
+        "invisible": true,
         "items": {
             "enabled": {
                 "description": "启用语音缓存",
