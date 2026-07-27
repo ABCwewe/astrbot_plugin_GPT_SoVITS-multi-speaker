@@ -224,7 +224,9 @@ class GPTSoVITSPlugin(Star):
         self, message_str: str
     ) -> tuple[str | None, str | None, str]:
         """
-        解析 "说" 触发模式（on-message hook）
+        解析 "说 " 触发模式（on-message hook）
+
+        "说" 字后必须紧跟一个空格才会触发，避免误触。
 
         支持格式：
         - "说 <文本>"                          -> (默认说话人, None, 文本)
@@ -239,11 +241,11 @@ class GPTSoVITSPlugin(Star):
         if not msg:
             return None, None, ""
 
-        say_char = "说"
+        say_trigger = "说 "
 
-        # 情况 1: 以 "说" 开头 -> 默认说话人，无情绪
-        if msg.startswith(say_char):
-            text = msg[len(say_char):].strip()
+        # 情况 1: 以 "说 " 开头 -> 默认说话人，无情绪
+        if msg.startswith(say_trigger):
+            text = msg[len(say_trigger):].strip()
             if text:
                 return self.cfg.default_speaker, None, text
             return None, None, ""
@@ -265,8 +267,8 @@ class GPTSoVITSPlugin(Star):
             remainder = msg[len(name):]
 
             # 说话人 + 说
-            if remainder.startswith(say_char):
-                text = remainder[len(say_char):].strip()
+            if remainder.startswith(say_trigger):
+                text = remainder[len(say_trigger):].strip()
                 if text:
                     return speaker_name, None, text
                 return None, None, ""
@@ -277,8 +279,8 @@ class GPTSoVITSPlugin(Star):
             ):
                 if remainder.startswith(emotion_name):
                     after_emotion = remainder[len(emotion_name):]
-                    if after_emotion.startswith(say_char):
-                        text = after_emotion[len(say_char):].strip()
+                    if after_emotion.startswith(say_trigger):
+                        text = after_emotion[len(say_trigger):].strip()
                         if text:
                             return speaker_name, emotion_name, text
                         return None, None, ""
@@ -291,8 +293,8 @@ class GPTSoVITSPlugin(Star):
             ):
                 if msg.startswith(emotion_name):
                     remainder = msg[len(emotion_name):]
-                    if remainder.startswith(say_char):
-                        text = remainder[len(say_char):].strip()
+                    if remainder.startswith(say_trigger):
+                        text = remainder[len(say_trigger):].strip()
                         if text:
                             return self.cfg.default_speaker, emotion_name, text
                         return None, None, ""
