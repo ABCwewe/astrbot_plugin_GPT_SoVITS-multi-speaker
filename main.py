@@ -224,13 +224,18 @@ class GPTSoVITSPlugin(Star):
         self, message_str: str
     ) -> tuple[str | None, str | None, str]:
         """
-        解析 "说" 触发模式（on-message hook）
+        解析 "说 " 触发模式（on-message hook）
+
+        "说" 字后必须紧跟一个空格才会触发，避免误触。
+        必须显式指定说话人名称，不回退到默认说话人。
 
         支持格式：
-        - "说 <文本>"                          -> (默认说话人, None, 文本)
         - "<说话人>说 <文本>"                   -> (说话人, None, 文本)
         - "<说话人><情绪>说 <文本>"             -> (说话人, 情绪, 文本)
-        - "<情绪>说 <文本>"                     -> (默认说话人, 情绪, 文本)
+
+        不触发合成的格式：
+        - "说 <文本>"                          -> 未指定说话人
+        - "<情绪>说 <文本>"                     -> 未指定说话人
 
         Returns:
             (speaker_name, emotion_name, text) 或 (None, None, "")
@@ -239,14 +244,7 @@ class GPTSoVITSPlugin(Star):
         if not msg:
             return None, None, ""
 
-        say_char = "说"
-
-        # 情况 1: 以 "说" 开头 -> 默认说话人，无情绪
-        if msg.startswith(say_char):
-            text = msg[len(say_char):].strip()
-            if text:
-                return self.cfg.default_speaker, None, text
-            return None, None, ""
+        say_trigger = "说 "
 
         # 收集所有 (名称, 说话人名, 说话人配置) 对，按名称长度降序
         all_names: list[tuple[str, str, SpeakerConfig]] = []
@@ -258,15 +256,15 @@ class GPTSoVITSPlugin(Star):
                 all_names.append((name, speaker_name, speaker_cfg))
         all_names.sort(key=lambda x: len(x[0]), reverse=True)
 
-        # 情况 2/3: 说话人 + 可选情绪 + 说
+        # 说话人 + 可选情绪 + 说
         for name, speaker_name, speaker_cfg in all_names:
             if not msg.startswith(name):
                 continue
             remainder = msg[len(name):]
 
             # 说话人 + 说
-            if remainder.startswith(say_char):
-                text = remainder[len(say_char):].strip()
+            if remainder.startswith(say_trigger):
+                text = remainder[len(say_trigger):].strip()
                 if text:
                     return speaker_name, None, text
                 return None, None, ""
@@ -277,24 +275,10 @@ class GPTSoVITSPlugin(Star):
             ):
                 if remainder.startswith(emotion_name):
                     after_emotion = remainder[len(emotion_name):]
-                    if after_emotion.startswith(say_char):
-                        text = after_emotion[len(say_char):].strip()
+                    if after_emotion.startswith(say_trigger):
+                        text = after_emotion[len(say_trigger):].strip()
                         if text:
                             return speaker_name, emotion_name, text
-                        return None, None, ""
-
-        # 情况 4: 情绪 + 说（使用默认说话人）
-        default_speaker_cfg = self.speaker_mgr.get_speaker(self.cfg.default_speaker)
-        if default_speaker_cfg:
-            for emotion_name in sorted(
-                default_speaker_cfg.get_emotion_names(), key=len, reverse=True
-            ):
-                if msg.startswith(emotion_name):
-                    remainder = msg[len(emotion_name):]
-                    if remainder.startswith(say_char):
-                        text = remainder[len(say_char):].strip()
-                        if text:
-                            return self.cfg.default_speaker, emotion_name, text
                         return None, None, ""
 
         return None, None, ""
