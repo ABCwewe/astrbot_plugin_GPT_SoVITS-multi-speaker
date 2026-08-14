@@ -168,12 +168,25 @@ class GPTSoVITSPlugin(Star):
             for p in providers:
                 try:
                     meta = p.meta()
-                    provider_id = meta.id
-                    model_name = meta.model or provider_id
+                    provider_id = (meta.id or "").strip()
+                    model_name = (meta.model or "").strip()
                 except Exception:
-                    provider_id = getattr(p, "id", "") or p.provider_config.get("id", "")
-                    model_name = getattr(p, "model_name", "") or provider_id
-                display_name = f"{model_name} ({provider_id})" if model_name else provider_id
+                    provider_id = (
+                        getattr(p, "id", "") or p.provider_config.get("id", "") or ""
+                    ).strip()
+                    model_name = (getattr(p, "model_name", "") or "").strip()
+
+                # 仅当模型名存在、不等于提供商 id、且未自带提供商后缀时才追加，
+                # 避免出现 "gemma4:31b (xxx) (xxx)"、"xxx (xxx)" 或 "xxx ()" 这类重复
+                if (
+                    model_name
+                    and provider_id
+                    and model_name != provider_id
+                    and not model_name.endswith(f"({provider_id})")
+                ):
+                    display_name = f"{model_name} ({provider_id})"
+                else:
+                    display_name = model_name or provider_id
                 result.append({"id": provider_id, "name": display_name})
             return json_response({"providers": result})
         except Exception as e:

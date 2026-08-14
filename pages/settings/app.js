@@ -383,7 +383,7 @@ function renderAuto() {
 function renderJudge() {
   const providerOpts = [
     ['', '跟随当前会话模型'],
-    ...providers.map(p => [p.id, `${p.name} (${p.id})`])
+    ...providers.map(p => [p.id, p.name])
   ];
   return `
     <div class="section-title">情感判断配置</div>
