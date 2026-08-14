@@ -27,7 +27,7 @@ from .core.service import GPTSoVITSService
 if TYPE_CHECKING:
     from .core.config import EmotionConfig, SpeakerConfig
 
-PLUGIN_NAME = "astrbot_plugin_GPT_SoVITS-multi-speaker"
+PLUGIN_NAME = "astrbot_plugin_GPT_SoVITS_multi_speaker"
 
 
 class GPTSoVITSPlugin(Star):

@@ -1,6 +1,6 @@
 # Changelog
 
-本文件记录 `astrbot_plugin_GPT_SoVITS-multi-speaker` 的版本变更历史。
+本文件记录 `astrbot_plugin_GPT_SoVITS_multi_speaker` 的版本变更历史。
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 

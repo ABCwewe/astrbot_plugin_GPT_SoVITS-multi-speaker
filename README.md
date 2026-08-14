@@ -1,13 +1,13 @@
 <div align="center">
 
-# astrbot_plugin_GPT_SoVITS-multi-speaker
+# astrbot_plugin_GPT_SoVITS_multi_speaker
 
 _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.0%2B-orange.svg)](https://github.com/Soulter/AstrBot)
-[![Version](https://img.shields.io/badge/version-v3.3.0-blue.svg)](https://github.com/ABCwewe/astrbot_plugin_GPT_SoVITS-multi-speaker)
+[![Version](https://img.shields.io/badge/version-v3.3.0-blue.svg)](https://github.com/ABCwewe/astrbot_plugin_GPT_SoVITS_multi_speaker)
 [![GitHub](https://img.shields.io/badge/原作者-Zhalslar-blue)](https://github.com/Zhalslar)
 [![GitHub](https://img.shields.io/badge/作者-ABCwewe-blue)](https://github.com/ABCwewe)
 
@@ -19,7 +19,7 @@ _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 本插件基于[astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)修改，感谢[@Zhalslar](https://github.com/Zhalslar)
 
-`astrbot_plugin_GPT_SoVITS-multi-speaker` 用于把 AstrBot 文本输出转换成语音输出，支持多说话人切换，底层调用 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) 的 API。
+`astrbot_plugin_GPT_SoVITS_multi_speaker` 用于把 AstrBot 文本输出转换成语音输出，支持多说话人切换，底层调用 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) 的 API。
 
 **v3.3.0 新增功能**：
 - **可视化配置页面（Plugin Pages）**：重构前端配置，提供简约美观的 WebUI 可视化页面，支持说话人管理、情绪可视化编辑、TTS 参数、自动触发、情感判断、缓存等全部配置项
@@ -54,7 +54,7 @@ _GPT-SoVITS 对接插件（TTS）- 多说话人版本_
 
 ```
 cd AstrBot/data/plugins    #移动到插件目录
-git clone https://github.com/ABCwewe/astrbot_plugin_GPT_SoVITS-multi-speaker.git
+git clone https://github.com/ABCwewe/astrbot_plugin_GPT_SoVITS_multi_speaker.git
 ```
 
 ---
